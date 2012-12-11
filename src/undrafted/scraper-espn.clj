@@ -10,19 +10,21 @@
 	[:table.tablehead])
 
 (def *player-status-date-selector* 
-	(html/select (fetch-url *injuries-url*) [:table.tablehead (html/nth-child 2 3)]))
+	[(html/nth-child 2 3)])
 
 (def *player-comment-selector*
-	(html/select (fetch-url *injuries-url*) [:table.tablehead (html/nth-child 2 4)]))
+	[(html/nth-child 2 4)])
 
 (defn status-and-comments []
 	(html/select (fetch-url *injuries-url*) *player-status-and-comments-selector*))
 
 (defn extract-status-and-comments [node]
-	(let [status-and-date (first (html/select [node] *player-status-date-selector*))
-		  comment         (first (html/select [node] *player-comment-selector*))
-		  result          (map html/text [status-and-date comment])]
-		(zipmap [:status-and-date :comment] result)))
+	(let [player  (first (html/select [node] (html/nth-child 1)))
+		  status  (first (html/select [node] (html/nth-child 2)))
+		  date    (first (html/select [node] (html/nth-child 3)))
+		  comment (first (html/select [node] *player-comment-selector*))
+		  result  (map html/text [player status date comment])]
+		(zipmap [:player :status :date :comment] result)))
 
 ;(defn injuries 
 ;	(map extract-status-and-comments (status-and-comments)))
