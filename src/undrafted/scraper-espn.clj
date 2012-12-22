@@ -2,15 +2,13 @@
 	(:require [net.cgrand.enlive-html :as html]))
 
 (def *injuries-url* "http://espn.go.com/nfl/injuries")
+(def *odds-url* "http://espn.go.com/nfl/lines")
 
 (defn fetch-url [url]
 	(html/html-resource (java.net.URL. url)))
 
 (def *player-status-and-comments-selector* 
 	[:table.tablehead (html/attr-contains :class "player")])
-
-(def *player-status-date-selector* 
-	[(html/nth-child 2 3)])
 
 (defn status-and-comments []
 	(html/select (fetch-url *injuries-url*) *player-status-and-comments-selector*))
@@ -24,5 +22,19 @@
 		  result  (map html/text [player status date comment])]
 		(zipmap [:player :status :date :comment] result)))
 
+(def loaded-statuses (status-and-comments))
+
 (defn injuries []
-	(map extract-status-and-comments (partition 2 (status-and-comments))))
+	(map extract-status-and-comments (partition 2 loaded-statuses)))
+
+(defn filter-injuries [name]
+	(filter (fn [s] (= name (get s :player))) (injuries)))
+
+(defn team-injuries [team]
+	(flatten (map filter-injuries (map (fn [p] (get p :name)) team))))
+
+(defn injury-report [team]
+	(map 
+		(fn [i] (format "%-80s %-15s %-10s\n%s\n\n" (get i :player) (get i :status) (get i :date) (get i :comment)))
+		(team-injuries team)))
+
