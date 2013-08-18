@@ -1,6 +1,6 @@
 (ns undrafted.scraper-espn
 	(:require [net.cgrand.enlive-html :as html])
-  (:require [undrafted.core :as c]))
+  (:require [undrafted.utils :as u]))
 
 (def *injuries-url* "http://espn.go.com/nfl/injuries")
 (def *odds-url* "http://espn.go.com/nfl/lines")
@@ -10,7 +10,7 @@
 	[:table.tablehead (html/attr-contains :class "player")])
 
 (defn status-and-comments []
-	(html/select (fetch-url *injuries-url*) *player-status-and-comments-selector*))
+	(html/select (u/fetch-url *injuries-url*) *player-status-and-comments-selector*))
 
 (defn extract-status-and-comments [node]
 	(let [[player-status comment] node

@@ -5,4 +5,6 @@
             :url "http://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.cli "0.2.4"]
-                 [enlive "1.1.1"]])
+                 [enlive "1.1.1"]]
+  :main undrafted.core
+  :aot :all)

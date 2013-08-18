@@ -2,7 +2,7 @@
   (:require [clojure.string :refer [split capitalize join trim]]
             [clojure.tools.cli :refer [cli]]
 	          [net.cgrand.enlive-html :as html]
-            [undrafted.core :as c]))
+            [undrafted.utils :as u]))
 
 (defn url [team]
   (str "http://www.ourlads.com/nfldepthcharts/depthchart/" team))
@@ -11,7 +11,7 @@
 	[:table#gvChart :td])
 
 (defn depth-chart-raw [team]
-	(html/select (c/fetch-url (url team)) depth-chart-selector))
+	(html/select (u/fetch-url (url team)) depth-chart-selector))
 
 (defn filter-headers [team]
   (fn [row] (not= (str "dcsub_" team) (get-in row [:attrs, :class]))))
@@ -31,13 +31,14 @@
         pos3 (extract-name row 6)
         pos4 (extract-name row 8)
         pos5 (extract-name row 10)]
-    {:name pos1 :position position :ord 1}
-    {:name pos2 :position position :ord 2}
-    {:name pos3 :position position :ord 3}
-    {:name pos4 :position position :ord 4}
-    {:name pos5 :position position :ord 5}))
+    (list
+     {:name pos1 :position position :ord 1}
+     {:name pos2 :position position :ord 2}
+     {:name pos3 :position position :ord 3}
+     {:name pos4 :position position :ord 4}
+     {:name pos5 :position position :ord 5})))
 
 (defn depth-chart [team]
-  (map transform-row (partition 11 (filter (filter-headers team) (depth-chart-raw team)))))
+  (flatten (map transform-row (partition 11 (filter (filter-headers team) (depth-chart-raw team))))))
 
 
