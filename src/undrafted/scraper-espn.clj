@@ -1,13 +1,12 @@
 (ns undrafted.scraper-espn
-	(:require [net.cgrand.enlive-html :as html]))
+	(:require [net.cgrand.enlive-html :as html])
+  (:require [undrafted.core :as c]))
 
 (def *injuries-url* "http://espn.go.com/nfl/injuries")
 (def *odds-url* "http://espn.go.com/nfl/lines")
 
-(defn fetch-url [url]
-	(html/html-resource (java.net.URL. url)))
 
-(def *player-status-and-comments-selector* 
+(def *player-status-and-comments-selector*
 	[:table.tablehead (html/attr-contains :class "player")])
 
 (defn status-and-comments []
@@ -34,7 +33,6 @@
 	(flatten (map filter-injuries (map (fn [p] (get p :name)) team))))
 
 (defn injury-report [team]
-	(map 
+	(map
 		(fn [i] (format "%-80s %-15s %-10s\n%s\n\n" (get i :player) (get i :status) (get i :date) (get i :comment)))
 		(team-injuries team)))
-
