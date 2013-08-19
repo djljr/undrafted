@@ -2,7 +2,7 @@
   (:require [clojure.string :refer [split capitalize join trim]]
             [clojure.tools.cli :refer [cli]]
 	          [net.cgrand.enlive-html :as html]
-            [undrafted.utils :as u]))
+            [undrafted.utils :refer [fetch-url]]))
 
 (defn url [team]
   (str "http://www.ourlads.com/nfldepthcharts/depthchart/" team))
@@ -11,7 +11,7 @@
 	[:table#gvChart :td])
 
 (defn depth-chart-raw [team]
-	(html/select (u/fetch-url (url team)) depth-chart-selector))
+	(html/select (fetch-url (url team)) depth-chart-selector))
 
 (defn filter-headers [team]
   (fn [row] (not= (str "dcsub_" team) (get-in row [:attrs, :class]))))
@@ -19,7 +19,7 @@
 (defn extract-name [row cnt]
   (->>
    (some-> (drop cnt row) first :content second :content first (split #"[\s,]+"))
-   (take 2)
+   drop-last
    reverse
    (map capitalize)
    (join " ")))
