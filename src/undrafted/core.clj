@@ -1,59 +1,106 @@
 (ns undrafted.core
-  (:gen-class :main true)
-	(:require [undrafted.depth-chart-ourlads :refer [depth-chart]]
-            [undrafted.scraper-espn :refer [injuries]]
-            [undrafted.espn-top-300 :refer [top-300]]
-            [undrafted.cbs-top-200 :refer [top-200]]
-            [clojure.string :refer [join escape]]))
+  (:require [org.httpkit.client :as http]
+            [net.cgrand.enlive-html :as html]
+            [yesql.core :as sql]))
 
-(def teams ["ARZ" "ATL" "BAL" "BUF" "CAR" "CHI" "CIN" "CLE" "DAL" "DEN" "DET" "GB" "HOU" "IND" "JAX" "KC" "MIA" "MIN" "NE" "NO" "NYG" "NYJ" "OAK" "PHI" "PIT" "SD" "SF" "SEA" "STL" "TB" "TEN" "WAS"])
+(def espn-300 "http://www.espn.com/fantasy/football/story/_/id/16287927/2016-fantasy-football-rankings-fantasy-football-player-rankings-top-fantasy-football-players-fantasy-football-draft")
 
-(defn filter-blank-name [p]
-  (not (empty? (:name p))))
+(def espn-injury "http://games.espn.com/ffl/resources/playernews?&injuryMode=true")
+
+(def db-spec {:classname "org.postgresql.Driver"
+              :subprotocol "postgresql"
+              :subname "//localhost:5432/undrafted"
+              :user "undrafted"
+              :password "undrafted"})
+
+(sql/defqueries
+  "sql/draft-rank.sql"
+  {:connection db-spec})
+
+(defn parse-espn-player [idx [name pos team bye _]]
+  (let [full-link (first (html/select name [:a]))
+        player-name (html/text full-link)
+        player-link (get-in full-link [:attrs :href])]
+    {:espn_rank (+ 1 idx)
+     :name player-name
+     :profile_link player-link
+     :position (html/text pos)
+     :team (html/text team)
+     :bye (Integer/parseInt (html/text bye))}))
+
+(defn scrape-espn []
+  (let [{:keys [status body error]} @(http/get espn-300 {:as :stream})
+        html (html/html-resource body)
+        rankings (drop 3 (html/select html [:table :> :tbody :> :tr]))
+        players (map-indexed parse-espn-player (map #(html/select % [:td]) rankings))]
+    players))
+
+(defn scrape-espn-injury []
+  (let [{:keys [status body error]} @(http/get espn-injury {:as :stream})
+        html (html/html-resource body)
+        ]
+    html))
+
+(defn save-espn-player [player]
+  (let [{:keys [id]} (create-player<! player)
+        player (assoc player :id id)]
+    (insert-espn-data! player)
+    player))
+
+(defn teams []
+  (let [format-fn (fn [{:keys [id name owner]}] (format "%-10s | %-25s | %-20s" id name owner))]
+    (println (format-fn {:id "id" :name "name" :owner "owner"}))
+    (println (apply str (take 61 (repeat "-"))))
+    (println (clojure.string/join "\n" (map format-fn (all-teams))))))
+
+(defn player [query]
+  (find-players-like {:query (str "%" query "%")}))
+
+(defn result-formatter [{:keys [name position team bye espn_rank]}]
+  (format "%-25s | %-4s | %-5s | %-2s | %-4s" name position team bye espn_rank))
+
+(defn pprint-result [result]
+  (println (result-formatter {:name "name" :position "pos" :team "team" :bye "bye" :espn_rank "rank"}))
+  (println (apply str (take 54 (repeat "-"))))
+  (println (clojure.string/join "\n" (map result-formatter result)))
+  result)
+
+(comment
+  (def espn-full (scrape-espn))
+  (save-espn-player (first espn-full))
+  (def html-resource (scrape-espn-injury))
+  (def table-resource  (html/select html-resource [:table :table :tr]))
 
 
+  (teams)
 
-(defn pretty-depth [team]
-  (fn [p] (format "%s,%s,%s,%s" team (:position p) (:name p) (:ord p))))
+  (def keepers ["Benjamin Watson" "Ronnie Hillman" "Andre Ellington" "Brandon Marshall" "Mike Wallace" "Colin Kaepernick" "Zach Ertz" "Steven Hauschka" "Mark Ingram"])
+  (pprint-result (map (comp first player) keepers))
+  
+  (pprint-result (undrafted {:limit 10}))
 
-(defn scrape-depth [team]
-  (join "\n" (map (pretty-depth team) (filter filter-blank-name (depth-chart team)))))
+  (pprint-result (undrafted-by-position {:position "QB" :limit 10}))
+  (pprint-result (undrafted-by-position {:position "RB" :limit 10}))
+  (pprint-result (undrafted-by-position {:position "WR" :limit 10}))
+  (pprint-result (undrafted-by-position {:position "TE" :limit 10}))
+  (pprint-result (undrafted-by-position {:position "K" :limit 10}))
+  (pprint-result (undrafted-by-position {:position "DST" :limit 10}))
 
-(defn do-depth []
-  (doseq [r (map scrape-depth teams)]
-    (println r)))
+
+  (pprint-result (undrafted-by-position-not-bye-week
+                  {:position "QB" :limit 10 :bye [11]}))
+  (pprint-result (undrafted-by-position-not-bye-week
+                  {:position "RB" :limit 10 :bye [11]}))
+  (pprint-result (undrafted-by-position-not-bye-week
+                  {:position "WR" :limit 10 :bye [11]}))
+  (pprint-result (undrafted-by-position-not-bye-week
+                  {:position "TE" :limit 10 :bye [11]}))
+  (pprint-result (undrafted-by-position-not-bye-week
+                  {:position "K" :limit 10 :bye [11]}))
+  (pprint-result (undrafted-by-position-not-bye-week
+                  {:position "DST" :limit 10 :bye [11]}))
 
 
-(defn pretty-injuries [p]
-  (format "%s\t%s\t%s\t%s" (:player p) (:status p) (:comment p) (:date p)))
+  (pprint-result (team-roster {:owner_id 6}))
 
-(defn scrape-injury []
-  (map pretty-injuries (injuries)))
-
-(defn do-injury []
-  (doseq [i (scrape-injury)]
-    (println i)))
-
-(defn pretty-top-300 [p]
-  (format "%s\t%s\t%s" (:rank p) (:name p) (:pos-rank p)))
-
-(defn do-top-300-espn []
-  (doseq [t (map pretty-top-300 (top-300))]
-    (println t)))
-
-(defn pretty-top-200 [p]
-  (format "%s\t%s\t%s" (:cbs p) (:rank p) (:name p)))
-
-(defn do-top-200-cbs [which?]
-  (doseq [t (map pretty-top-200 (which? (top-200)))]
-    (println t)))
-
-(defn -main [& args]
-  (let [args (set args)]
-        (cond
-         (args "depth") (do-depth)
-         (args "injury") (do-injury)
-         (args "top-espn") (do-top-300-espn)
-         (args "top-cbs1") (do-top-200-cbs :cbs1)
-         (args "top-cbs2") (do-top-200-cbs :cbs2)
-         (args "top-cbs3") (do-top-200-cbs :cbs3))))
+  )

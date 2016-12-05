@@ -1,10 +1,10 @@
 (defproject undrafted "0.1.0-SNAPSHOT"
-  :description "Aggregate NFL news and stats"
+  :description "NFL stats scraper and draft helper"
   :url "http://example.com/FIXME"
-  :license {:name "MIT License"
-            :url "http://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/tools.cli "0.2.4"]
-                 [enlive "1.1.1"]]
-  :main undrafted.core
-  :aot :all)
+  :license {:name "Eclipse Public License"
+            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :dependencies [[org.clojure/clojure "1.9.0-alpha10"]
+                 [enlive "1.1.6"]
+                 [http-kit "2.2.0"]
+                 [yesql "0.5.3"]
+                 [org.postgresql/postgresql "9.4-1201-jdbc41"]])
